@@ -9,7 +9,7 @@ import feedparser
 # === CONFIGURACIÓN ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID"))
-CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 480))  # chequeo cada 8 minutos
+CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 480))  # 8 minutos
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -71,14 +71,16 @@ async def news_checker():
 
             triggering = await get_triggering_news(new_items)
             if triggering:
-                alert = "**🚨 ALERTA - EVENTO CLAVE DETECTADO**\n\n"
-                for i, entry in enumerate(triggering[:3], 1):  # máximo 3 noticias por alerta
+                for entry in triggering[:3]:  # máximo 3 alertas por chequeo
                     title = entry.title
                     link = entry.link
-                    alert += f"**{i}. {title}**\n{link}\n\n"
-                
-                alert += "Fuente: feeds verificados en tiempo real."
-                await bot.send_message(CHAT_ID, alert, parse_mode="Markdown", disable_web_page_preview=True)
+                    alert = f"🚨 **ALERTA - EVENTO CLAVE DETECTADO**\n\n**{title}**\n\n{link}\n\nFuente: feeds verificados en tiempo real."
+                    await bot.send_message(
+                        CHAT_ID, 
+                        alert, 
+                        parse_mode="Markdown",
+                        disable_web_page_preview=False 
+                    )
 
         except Exception as e:
             print(f"Error: {e}")
@@ -88,10 +90,10 @@ async def news_checker():
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
     if message.chat.id == CHAT_ID:
-        await message.answer("*Bot de alertas*\n\nTe avisaré con **título + link directo** de la noticia.", parse_mode="Markdown")
+        await message.answer("*Bot de alertas*\n\nCada alerta ahora viene con título + imagen + link directo.", parse_mode="Markdown")
 
 async def main():
-    print("Iran Alert Bot iniciado...")
+    print("Alert Bot iniciado...")
     asyncio.create_task(news_checker())
     await dp.start_polling(bot)
 
