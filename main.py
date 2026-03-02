@@ -29,11 +29,9 @@ FEEDS = [
 
 # === FRASES FUERTES (una sola activa alerta) ===
 KEYWORDS_STRONG = [
-    # Español
     "misil balístico", "lanzó misiles", "ataque a israel", "bases estadounidenses",
     "jamenei", "líder supremo", "explosión en teherán", "respuesta iraní",
     "ataque iraní", "misiles iraníes", "bombardeo israelí", "iran ataca",
-    # Inglés
     "launches ballistic missiles", "attacks israel", "strikes israel", "us bases attacked",
     "khamenei", "supreme leader killed", "explosion in tehran", "iranian missile attack",
     "iran strikes back", "major escalation", "iran retaliation", "israel strikes iran",
@@ -50,17 +48,13 @@ KEYWORDS = [
     "gulf", "hormuz", "retaliation", "counterattack", "counterstrike", "nuclear", "drone", "idf"
 ]
 
-async def is_key_event(news_list):
+async def get_triggering_news(news_list):
+    triggering = []
     for entry in news_list:
         text = (entry.title + " " + entry.get('description', '')).lower()
-       
-        if any(kw in text for kw in KEYWORDS_STRONG):
-            return True
-       
-        matches = sum(1 for kw in KEYWORDS if kw in text)
-        if matches >= 3:
-            return True
-    return False
+        if any(kw in text for kw in KEYWORDS_STRONG) or sum(1 for kw in KEYWORDS if kw in text) >= 3:
+            triggering.append(entry)
+    return triggering
 
 async def news_checker():
     await asyncio.sleep(10)
@@ -75,9 +69,16 @@ async def news_checker():
                         new_items.append(entry)
                         seen_items.add(guid)
 
-            if new_items and await is_key_event(new_items):
-                alert = f"**ALERTA - EVENTO CLAVE DETECTADO**\n\nSe detectó actividad importante en la guerra (misiles, ataque, escalada o retaliación).\n\nRevisa noticias ahora.\n\nFuente: feeds verificados en tiempo real."
-                await bot.send_message(CHAT_ID, alert, parse_mode="Markdown")
+            triggering = await get_triggering_news(new_items)
+            if triggering:
+                alert = "**🚨 ALERTA - EVENTO CLAVE DETECTADO**\n\n"
+                for i, entry in enumerate(triggering[:3], 1):  # máximo 3 noticias por alerta
+                    title = entry.title
+                    link = entry.link
+                    alert += f"**{i}. {title}**\n{link}\n\n"
+                
+                alert += "Fuente: feeds verificados en tiempo real."
+                await bot.send_message(CHAT_ID, alert, parse_mode="Markdown", disable_web_page_preview=True)
 
         except Exception as e:
             print(f"Error: {e}")
@@ -87,10 +88,10 @@ async def news_checker():
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
     if message.chat.id == CHAT_ID:
-        await message.answer("*Bot de alertas activado (versión mejorada)*\n\nTe avisaré **solo** cuando haya eventos realmente importantes.", parse_mode="Markdown")
+        await message.answer("*Bot de alertas*\n\nTe avisaré con **título + link directo** de la noticia.", parse_mode="Markdown")
 
 async def main():
-    print("Iran Alert Bot (mejorado) iniciado...")
+    print("Iran Alert Bot iniciado...")
     asyncio.create_task(news_checker())
     await dp.start_polling(bot)
 
